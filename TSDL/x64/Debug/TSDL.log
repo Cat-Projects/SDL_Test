@@ -1,0 +1,6 @@
+﻿  Source.cpp
+c:\users\тест\documents\visual studio 2015\projects\tsdl\tsdl\source.cpp(52): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+c:\users\тест\documents\visual studio 2015\projects\tsdl\tsdl\source.cpp(53): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+c:\users\тест\documents\visual studio 2015\projects\tsdl\tsdl\source.cpp(172): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+  TSDL.vcxproj -> C:\Users\тест\Documents\Visual Studio 2015\Projects\TSDL\x64\Debug\TSDL.exe
+  TSDL.vcxproj -> C:\Users\тест\Documents\Visual Studio 2015\Projects\TSDL\x64\Debug\TSDL.pdb (Partial PDB)

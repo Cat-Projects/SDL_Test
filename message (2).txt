@@ -1,0 +1,200 @@
+#define _USE_MATH_DEFINES
+#include<iostream>
+#include<SDL.h>
+#include<SDL_image.h>
+
+typedef unsigned char byte;
+
+SDL_Window* win = NULL;
+SDL_Renderer* ren = NULL;
+
+int win_width = 1400, win_height = 900;
+
+void DeInit(int error)
+{
+	if (ren != NULL) SDL_DestroyRenderer(ren);
+	if (win != NULL) SDL_DestroyWindow(win);
+	IMG_Quit();
+	SDL_Quit();
+	exit(error);
+}
+
+void Init()
+{
+	if (SDL_Init(SDL_INIT_VIDEO) != 0)
+	{
+		printf("Couldn't init SDL! Error: %s", SDL_GetError());
+		system("pause");
+		DeInit(1);
+	}
+
+	int res;
+	if ((res = IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG)) == 0)
+	{
+		printf("Couldn't init SDL_Image! Error: %s", SDL_GetError());
+		system("pause");
+		DeInit(1);
+	}
+	if (res & IMG_INIT_PNG) printf("Initialized PNG library.\n"); else printf("Couldn't init PNG library.\n");
+	if (res & IMG_INIT_JPG) printf("Initialized JPG library.\n"); else printf("Couldn't init JPG library.\n");
+
+	win = SDL_CreateWindow("Just another window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+		win_width, win_height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+	if (win == NULL)
+	{
+		printf("Couldn't create window! Error: %s", SDL_GetError());
+		system("pause");
+		DeInit(1);
+	}
+
+	ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
+	if (ren == NULL)
+	{
+		printf("Couldn't create renderer! Error: %s", SDL_GetError());
+		system("pause");
+		DeInit(1);
+	}
+}
+
+SDL_Texture* loadTextureFromFile(const char* filename, SDL_Rect* rect)
+{
+	SDL_Surface* surface = IMG_Load(filename);
+	if (surface == NULL)
+	{
+		printf("Couldn't load image %s! Error: %s", filename, SDL_GetError());
+		system("pause");
+		DeInit(1);
+	}
+
+	SDL_Texture* texture = SDL_CreateTextureFromSurface(ren, surface);
+	*rect = { 0, 0, surface->w, surface->h };
+	SDL_FreeSurface(surface);
+	return texture;
+}
+
+#define DIR_RIGHT 1
+#define DIR_LEFT  2
+
+int main(int argc, char* argv[])
+{
+	Init();
+
+	SDL_Rect back_rect;
+	SDL_Texture* back_tex = loadTextureFromFile("back.jpg", &back_rect);
+
+	SDL_Rect player_rect;
+	SDL_Texture* player_tex = loadTextureFromFile("animation.png", &player_rect);
+	player_rect.w = player_rect.h;
+
+	SDL_Event ev;
+	bool isRunning = true;
+
+	int x = 0, y = 0;
+	int delta = 10;
+	double angle = 0;
+
+	SDL_Rect dst_rect = { 0, 0, 0, 0};
+	int frame = 0;
+	int frame_count = 6;
+	int cur_frametime = 0;
+	int max_frametime = 1000/8;
+	
+	int lasttime = SDL_GetTicks();
+	int newtime;
+	int dt = 0;
+
+	bool isup, isdown, isleft, isright;
+	isup = isdown = isleft = isright = false;
+	bool animate = false;
+
+	int direction = DIR_RIGHT;
+
+	while (isRunning)
+	{
+		while (SDL_PollEvent(&ev))
+		{
+			switch (ev.type)
+			{
+			case SDL_QUIT:
+				isRunning = false;
+				break;
+
+			case SDL_WINDOWEVENT:
+				if (ev.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+				{
+					win_width = ev.window.data1;
+					win_height = ev.window.data2;
+				}
+				break;
+
+			case SDL_KEYDOWN:
+				switch (ev.key.keysym.scancode)
+				{
+				case SDL_SCANCODE_UP:		isup = true;	break;
+				case SDL_SCANCODE_DOWN:		isdown = true;	break;
+				case SDL_SCANCODE_RIGHT:	isright = true;	direction = DIR_RIGHT; break;
+				case SDL_SCANCODE_LEFT:		isleft = true;	direction = DIR_LEFT; break;
+				case SDL_SCANCODE_PAGEUP:	angle += 5; break;
+				case SDL_SCANCODE_PAGEDOWN:	angle -= 5; break;
+				}
+				break;
+
+			case SDL_KEYUP:
+				switch (ev.key.keysym.scancode)
+				{
+				case SDL_SCANCODE_UP:		isup = false;	break;
+				case SDL_SCANCODE_DOWN:		isdown = false;	break;
+				case SDL_SCANCODE_RIGHT:	isright = false;break;
+				case SDL_SCANCODE_LEFT:		isleft = false;	break;
+				}
+				break;
+			}
+		}
+
+		newtime = SDL_GetTicks();
+		dt = newtime - lasttime;
+		lasttime = newtime;
+
+		if (isup)	y -= delta;
+		if (isdown)	y += delta;
+		if (isright)x += delta;
+		if (isleft)	x -= delta;
+		
+		animate = isup || isdown || isright || isleft;
+
+		dst_rect = { x, y, player_rect.w, player_rect.h };
+
+#pragma region DRAWING
+		SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
+		SDL_RenderClear(ren);
+
+		SDL_RenderCopy(ren, back_tex, &back_rect, NULL);
+
+		if (animate)
+		{
+			cur_frametime += dt;
+			if (cur_frametime >= max_frametime)
+			{
+				cur_frametime -= max_frametime;
+				frame = (frame + 1) % frame_count;
+				player_rect.x = player_rect.w * frame;
+			}
+		}
+
+		if (direction == DIR_RIGHT)
+			SDL_RenderCopy(ren, player_tex, &player_rect, &dst_rect);
+		else
+			SDL_RenderCopyEx(ren, player_tex, &player_rect, &dst_rect, 0, NULL, SDL_FLIP_HORIZONTAL );
+
+		SDL_RenderPresent(ren);
+#pragma endregion
+
+		SDL_Delay(20);
+	}
+
+	SDL_DestroyTexture(player_tex);
+	SDL_DestroyTexture(back_tex);
+	
+	DeInit(0);
+	return 0;
+}
